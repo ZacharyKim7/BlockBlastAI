@@ -54,38 +54,40 @@ class Board:
                     pygame.draw.rect(self.screen, colors[self.board[x][y]], (y * self.cell_size, x * self.cell_size, self.cell_size, self.cell_size))
 
     # Function to check for and remove full rows
-    def check_rows(self, score):
+    def check_rows(self):
+        points = 0
         for y in range(self.grid_size - 1, -1, -1):
             if all(self.board[y][x] != 0 for x in range(self.grid_size)):
                 for x in range(self.grid_size):
                     self.board[y][x] = 0
-                score += 10
-        return score
+                points += 10
+        return points
 
     # Function to check for and remove full columns
-    def check_columns(self, score):
+    def check_columns(self):
+        points = 0
         for x in range(self.grid_size):
             if all(self.board[y][x] != 0 for y in range(self.grid_size)):
                 for y in range(self.grid_size):
                     self.board[y][x] = 0
-                score += 10
-        return score
+                points += 10
+        return points
 
     # Function to check for game over
-    def check_game_over(self, pieces):
-        global game_over
+    def is_game_over(self, pieces):
         for piece in pieces:
-            for x in range(self.grid_size):
-                for y in range(self.grid_size):
-                    p_x, p_y = x, y
-                    if piece.can_place_piece(piece, p_x, p_y, self):
+            for y in range(self.grid_size):
+                for x in range(self.grid_size):
+                    if piece.can_place_piece(piece, x, y, self):
                         return False
-        game_over = True
+        print("current Piece: ", piece.name)
+        return True
 
 
 class Piece:
     def __init__(self, color_id):
         self.shape = []
+        self.name = "Piece"
         self.color_id = color_id
         self.piece_x = 0
         self.piece_y = 0
@@ -95,9 +97,9 @@ class Piece:
             pygame.draw.rect(board.screen, color, ((self.piece_x + x) * board.cell_size, (self.piece_y + y) * board.cell_size, board.cell_size, board.cell_size))
 
     # Function to check if a piece can be placed
-    def can_place_piece(self, current_piece, piece_x, piece_y, board):
-        for x, y in current_piece.shape:
-            if piece_x + x < 0 or piece_x + x >= board.grid_size or piece_y + y >= board.grid_size:
+    def can_place_piece(self, piece, piece_x, piece_y, board):
+        for x, y in piece.shape:
+            if piece_x + x < 0 or piece_x + x >= board.grid_size or piece_y + y < 0 or piece_y + y >= board.grid_size:
                 return False
             if board.board[piece_y + y][piece_x + x] != 0:
                 return False
@@ -112,61 +114,73 @@ class Dot(Piece):
     def __init__(self, color_id):
         super().__init__(color_id)
         self.shape = [(0, 0)]
+        self.name = "Dot"
 
 class Square(Piece):
     def __init__(self, color_id):
         super().__init__(color_id)
         self.shape = [(0, 0), (0, 1), (1, 0), (1, 1)]
+        self.name = "Square"
 
 class LargeSquare(Piece):
     def __init__(self, color_id):
         super().__init__(color_id)
         self.shape = [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2), (2, 0), (2, 1), (2, 2)]
+        self.name = "Large Square"
 
 class VerticalLine(Piece):
     def __init__(self, color_id):
         super().__init__(color_id)
         self.shape = [(0, 0), (1, 0), (2, 0)]
+        self.name = "Vertical Line"
 
 class TwoHorizontal(Piece):
     def __init__(self, color_id):
         super().__init__(color_id)
         self.shape = [(0, 0), (0, 1)]
+        self.name = "Two Horizontal"
 
 class ThreeHorizontal(Piece):
     def __init__(self, color_id):
         super().__init__(color_id)
         self.shape = [(0, 0), (0, 1), (0, 2)]
+        self.name = "Three Horizontal"
 
 class FourHorizontal(Piece):
     def __init__(self, color_id):
         super().__init__(color_id)
         self.shape = [(0, 0), (0, 1), (0, 2), (0, 3)]
+        self.name = "Four Horizontal"
 
 class FiveHorizontal(Piece):    
     def __init__(self, color_id):
         super().__init__(color_id)
         self.shape = [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4)]
+        self.name = "Five Horizontal"
 
 class TwoVertical(Piece):
     def __init__(self, color_id):
         super().__init__(color_id)
         self.shape = [(0, 0), (1, 0)]
+        self.name = "Two Vertical"
 
 class ThreeVertical(Piece):
     def __init__(self, color_id):
         super().__init__(color_id)
         self.shape = [(0, 0), (1, 0), (2, 0)]
+        self.name = "Three Vertical"
 
 class FourVertical(Piece):
     def __init__(self, color_id):
         super().__init__(color_id)
         self.shape = [(0, 0), (1, 0), (2, 0), (3, 0)]
+        self.name = "Four Vertical"
 
 class FiveVertical(Piece):
     def __init__(self, color_id):
         super().__init__(color_id)
         self.shape = [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0)]
+        self.name = "Five Vertical"
 
 # class LeftCactus(Piece):
 #     def __init__(self, color_id):
