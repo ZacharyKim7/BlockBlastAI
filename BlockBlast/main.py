@@ -23,7 +23,7 @@ colors = {
         }
 
 def choose_piece(color_id):
-    selection = random.randint(0, 8)
+    selection = random.randint(1, 8)
 
     if selection == 0:
         return LargeSquare(color_id)
@@ -166,28 +166,20 @@ def count_available_spaces(grid):
 def calculate_reward(grid_before, grid_after, score_before, score_after):
     """Calculates the reward based on score change and available spaces."""
     score_reward = (score_after - score_before) * 10  # Reward for clearing lines
-    spaces_before = count_available_spaces(grid_before)
-    spaces_after = count_available_spaces(grid_after)
 
-    # space_change = spaces_after - spaces_before
-    # print(spaces_after * 0.1)
-    # space_reward = space_change * 1 #small reward for increasing empty spaces
-    # if space_change < 0:
-    #     space_reward = space_change * 5 #larger penalty for decreasing empty spaces
-    # print(score_reward + space_reward) - ((64 - spaces_after) * 0.1)
     return score_reward
 
 # def calculate_reward(score_before, score_after):
 #     return (score_after - score_before) * 10 #reward 10 points per row/col cleared
 
 # Main training loop
-num_episodes = 10000
+num_episodes = 500
 scores = deque(maxlen=100)
-grid = Board()
 score = 0
+grid = Board()
 for episode in range(num_episodes):
-    grid.board = np.array(grid.board)
     score = 0
+    grid.board = np.array(grid.board)
     piece = choose_piece(random.randint(1, 6))
     piece.shape = np.array(piece.shape)
     state = get_state(grid.board)
@@ -200,9 +192,11 @@ for episode in range(num_episodes):
         grid_before = np.copy(grid.board) #create a copy of the grid before placing the piece
         score_before = score
         piece.place_piece(grid)
+
         score += grid.check_rows()
         score += grid.check_columns()
 
+        # print(score)
         score_after = score
         grid_after = np.copy(grid.board)
         reward = calculate_reward(grid_before, grid_after, score_before, score_after)
@@ -229,12 +223,13 @@ for episode in range(num_episodes):
 
         state = next_state
         piece = next_piece
-
+    # print(score)
     scores.append(score)
-    if episode % 100 == 0:
-        average_score = np.mean(scores)
-        print(f"Episode: {episode}, Average Score (Last 100): {average_score:.2f}")
-    epsilon = max(epsilon * 0.999, 0.01) #decay epsilon over time
+    # if episode % 100 == 0:
+    #     print(scores)
+    #     average_score = np.mean(scores)
+    #     print(f"Episode: {episode}, Average Score (Last 100): {average_score:.2f}")
+    # epsilon = max(epsilon * 0.999, 0.01) #decay epsilon over time
 
 print("Training finished!")
 # game_loop() # You can uncomment this to play after training
