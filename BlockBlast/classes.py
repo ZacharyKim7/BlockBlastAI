@@ -21,9 +21,7 @@ class Game:
         grid.screen.blit(text, text_rect)
         pygame.display.update()
         pygame.time.delay(2000)
-
-pygame.quit()
-
+        pygame.quit()
 
 class Board:
     def __init__(self, grid_size = 8):
