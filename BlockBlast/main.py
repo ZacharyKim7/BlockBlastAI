@@ -173,12 +173,13 @@ def calculate_reward(grid_before, grid_after, score_before, score_after):
 #     return (score_after - score_before) * 10 #reward 10 points per row/col cleared
 
 # Main training loop
-num_episodes = 500
+num_episodes = 1000
 scores = deque(maxlen=100)
 score = 0
 grid = Board()
 for episode in range(num_episodes):
     score = 0
+    grid.reset()
     grid.board = np.array(grid.board)
     piece = choose_piece(random.randint(1, 6))
     piece.shape = np.array(piece.shape)
@@ -196,7 +197,6 @@ for episode in range(num_episodes):
         score += grid.check_rows()
         score += grid.check_columns()
 
-        # print(score)
         score_after = score
         grid_after = np.copy(grid.board)
         reward = calculate_reward(grid_before, grid_after, score_before, score_after)
@@ -225,11 +225,10 @@ for episode in range(num_episodes):
         piece = next_piece
     # print(score)
     scores.append(score)
-    # if episode % 100 == 0:
-    #     print(scores)
-    #     average_score = np.mean(scores)
-    #     print(f"Episode: {episode}, Average Score (Last 100): {average_score:.2f}")
-    # epsilon = max(epsilon * 0.999, 0.01) #decay epsilon over time
+    if episode % 100 == 0:
+        average_score = np.mean(scores)
+        print(f"Episode: {episode}, Average Score (Last 100): {average_score:.2f}")
+    epsilon = max(epsilon * 0.999, 0.01) #decay epsilon over time
 
 print("Training finished!")
 # game_loop() # You can uncomment this to play after training

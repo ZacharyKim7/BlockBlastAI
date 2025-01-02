@@ -81,6 +81,8 @@ class Board:
         print("current Piece: ", piece.name)
         return True
 
+    def reset(self):
+        self.board = [[0 for _ in range(8)] for _ in range(8)]
 
 class Piece:
     def __init__(self, color_id):
