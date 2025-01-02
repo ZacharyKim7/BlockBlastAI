@@ -21,9 +21,7 @@ class Game:
         grid.screen.blit(text, text_rect)
         pygame.display.update()
         pygame.time.delay(2000)
-
-pygame.quit()
-
+        pygame.quit()
 
 class Board:
     def __init__(self, grid_size = 8):
@@ -83,6 +81,8 @@ class Board:
         print("current Piece: ", piece.name)
         return True
 
+    def reset(self):
+        self.board = [[0 for _ in range(8)] for _ in range(8)]
 
 class Piece:
     def __init__(self, color_id):
