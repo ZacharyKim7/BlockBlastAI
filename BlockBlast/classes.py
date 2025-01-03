@@ -1,3 +1,95 @@
+# Deep Q-Learning Classes
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+from collections import deque
+import random
+
+class DQN(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super(DQN, self).__init__()
+        self.fc1 = nn.Linear(input_dim, 128)
+        self.fc2 = nn.Linear(128, 128)
+        self.fc3 = nn.Linear(128, output_dim)
+    
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        return self.fc3(x)
+
+class ReplayBuffer:
+    def __init__(self, capacity):
+        self.buffer = deque(maxlen=capacity)
+    
+    def push(self, state, action, reward, next_state, done):
+        self.buffer.append((state, action, reward, next_state, done))
+    
+    def sample(self, batch_size):
+        return random.sample(self.buffer, batch_size)
+    
+    def __len__(self):
+        return len(self.buffer)
+
+class ReplayBuffer:
+    def __init__(self, capacity):
+        self.buffer = deque(maxlen=capacity)
+    
+    def push(self, state, action, reward, next_state, done):
+        self.buffer.append((state, action, reward, next_state, done))
+    
+    def sample(self, batch_size):
+        return random.sample(self.buffer, batch_size)
+    
+    def __len__(self):
+        return len(self.buffer)
+
+class DQNAgent:
+    def __init__(self, state_dim, action_dim):
+        self.policy_net = DQN(state_dim, action_dim)
+        self.target_net = DQN(state_dim, action_dim)
+        self.target_net.load_state_dict(self.policy_net.state_dict())
+        self.target_net.eval()
+        
+        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=1e-4)
+        self.buffer = ReplayBuffer(10000)
+        self.gamma = 0.99
+        self.batch_size = 64
+        self.epsilon = 0.9
+    
+    def select_action(self, state, GRID_WIDTH, GRID_HEIGHT):
+        if random.random() > self.epsilon:
+            with torch.no_grad():
+                q_values = self.policy_net(torch.FloatTensor(state).unsqueeze(0))
+                return q_values.max(1)[1].item()
+        else:
+            return random.choice(range(GRID_WIDTH * GRID_HEIGHT))
+    
+    def train_step(self):
+        if len(self.buffer) < self.batch_size:
+            return
+        batch = self.buffer.sample(self.batch_size)
+        states, actions, rewards, next_states, dones = zip(*batch)
+        
+        states = torch.FloatTensor(states)
+        actions = torch.LongTensor(actions)
+        rewards = torch.FloatTensor(rewards)
+        next_states = torch.FloatTensor(next_states)
+        dones = torch.FloatTensor(dones)
+        
+        current_q = self.policy_net(states).gather(1, actions.unsqueeze(1)).squeeze()
+        next_q = self.target_net(next_states).max(1)[0]
+        target_q = rewards + (self.gamma * next_q * (1 - dones))
+        
+        loss = F.mse_loss(current_q, target_q.detach())
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+
+
+
+# Block Blast Classes
 import pygame
 
 class Game:
