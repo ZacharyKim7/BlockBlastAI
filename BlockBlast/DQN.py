@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import random
+from torch.optim.lr_scheduler import StepLR 
 from collections import deque
 from classes import *
 
@@ -55,12 +56,6 @@ GRID_HEIGHT = 8  # Height of the grid (8 rows)
 WIDTH = GRID_WIDTH * GRID_SIZE
 HEIGHT = GRID_HEIGHT * GRID_SIZE
 
-# Q-learning setup
-q_values = {}
-epsilon = 0.9
-discount_factor = 0.9
-learning_rate = 0.5
-
 def get_state(grid):
     return tuple(grid.flatten())  # Convert grid to a hashable tuple
 
@@ -72,54 +67,28 @@ def get_possible_actions(piece, grid):
             if piece.can_place_piece(piece, y, x, grid):
                 actions.append((x, y))
     return actions
-
-def choose_action(state, piece, grid):
-    if random.random() < epsilon:  # Explore
-        possible_actions = get_possible_actions(piece, grid)
-        if possible_actions:
-            return random.choice(possible_actions)
-        else:
-            return None
-    else:  # Exploit
-        max_q = -np.inf
-        best_action = None
-        possible_actions = get_possible_actions(piece, grid)
-        if not possible_actions:
-            return None
-        for action in possible_actions:
-            if (state, tuple(piece.shape.flatten()), action) in q_values:
-                q = q_values[(state, tuple(piece.shape.flatten()), action)]
-                if q > max_q:
-                    max_q = q
-                    best_action = action
-            else:
-                q_values[(state, tuple(piece.shape.flatten()), action)] = 0
-                q = 0
-                if q > max_q:
-                    max_q = q
-                    best_action = action
-
-        return best_action
-    
+ 
 def count_available_spaces(grid):
     """Counts the number of empty cells on the grid."""
     return np.sum(grid == 0)
 
 def calculate_reward(grid_before, grid_after, score_before, score_after):
-    """Calculates the reward based on score change and available spaces."""
-    score_reward = (score_after - score_before) * 10  # Reward for clearing lines
-
+    score_reward = (score_after - score_before)
+    if score_reward == 0:
+        score_reward += 1
     return score_reward
 
 class DQN(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super(DQN, self).__init__()
         self.network = nn.Sequential(
-            nn.Linear(input_size, hidden_size),
+            nn.Linear(input_size, hidden_size),  # First layer
             nn.ReLU(),
-            nn.Linear(hidden_size, hidden_size),
+            nn.Linear(hidden_size, hidden_size // 2),  # Second layer (half neurons)
             nn.ReLU(),
-            nn.Linear(hidden_size, output_size)
+            nn.Linear(hidden_size // 2, hidden_size // 4),  # Third layer (quarter neurons)
+            nn.ReLU(),
+            nn.Linear(hidden_size // 4, output_size)  # Output layer
         )
     
     def forward(self, x):
@@ -138,8 +107,8 @@ class ReplayBuffer:
     def __len__(self):
         return len(self.buffer)
 
-class DQLAgent:
-    def __init__(self, state_size, action_size, hidden_size=128):
+class DQNAgent:
+    def __init__(self, state_size, action_size, hidden_size=512):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
         self.state_size = state_size
@@ -151,7 +120,9 @@ class DQLAgent:
         self.target_net = DQN(state_size, hidden_size, action_size).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         
-        self.optimizer = optim.Adam(self.policy_net.parameters())
+        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.001)  # Add initial learning rate
+        self.scheduler = StepLR(self.optimizer, step_size=50, gamma=0.9)  # Reduce LR every 50 steps by 10%
+        
         self.memory = ReplayBuffer(10000)
         
         # Hyperparameters
@@ -159,8 +130,8 @@ class DQLAgent:
         self.gamma = 0.99
         self.epsilon = 1.0
         self.epsilon_min = 0.01
-        self.epsilon_decay = 0.999
-        self.target_update = 10  # Update target network every N episodes
+        self.epsilon_decay = 0.995
+        self.target_update = 5  # Update target network every N episodes
     
     def pad_piece_state(self, piece_state):
         # Pad or truncate piece state to fixed size
@@ -186,17 +157,25 @@ class DQLAgent:
             
         with torch.no_grad():
             q_values = self.policy_net(state_tensor)
-            # Convert actions to indices and mask impossible actions
-            action_mask = torch.zeros(self.action_size, device=self.device)
-            for action in possible_actions:
-                idx = action[0] * GRID_WIDTH + action[1]
-                action_mask[idx] = 1
-            q_values = q_values * action_mask
+            # action_mask = torch.zeros(self.action_size, device=self.device)
+            # for action in possible_actions:
+            #     idx = action[0] * GRID_WIDTH + action[1]
+            #     action_mask[idx] = 1
+            
+            # q_values[:, ~action_mask.bool()] = -float('inf')
             
             action_idx = q_values.max(1)[1].item()
             action = (action_idx // GRID_WIDTH, action_idx % GRID_WIDTH)
-            return action if action in possible_actions else random.choice(possible_actions)
-    
+
+            return action
+            
+            # if action in possible_actions:
+            #     print('y')
+            #     return action
+            # else:
+            #     print('n')
+            #     return random.choice(possible_actions)
+        
     def train(self):
         if len(self.memory) < self.batch_size:
             return
@@ -236,7 +215,7 @@ def train_dqn():
     grid = Board()
     state_size = GRID_WIDTH * GRID_HEIGHT + 25  # Board state + max piece size
     action_size = GRID_WIDTH * GRID_HEIGHT  # All possible positions
-    agent = DQLAgent(state_size, action_size)
+    agent = DQNAgent(state_size, action_size)
     
     num_episodes = 1000
     scores = deque(maxlen=100)
@@ -254,32 +233,37 @@ def train_dqn():
             action = agent.choose_action(state_tensor, piece, grid)
             if action is None:
                 break
-                
+
             # Place piece and get reward
             piece.piece_y, piece.piece_x = action
             grid_before = np.copy(grid.board)
             score_before = score
+            if not piece.can_place_piece(piece, piece.piece_x, piece.piece_y, grid):
+                reward = -5
+                action_idx = action[0] * GRID_WIDTH + action[1]
+                agent.memory.push(state_tensor, action_idx, reward, next_state_tensor, False)
+                agent.train()
+            else:
+                next_piece = choose_piece(random.randint(1, 6))
+                next_piece.shape = np.array(next_piece.shape)
+                done = grid.is_game_over([next_piece])
+
+                piece.place_piece(grid)
+                score += grid.check_rows()
+                score += grid.check_columns()
+
+               # Get next state and rewar
+                next_state_tensor = agent.get_state_tensor(grid.board, next_piece)
             
-            piece.place_piece(grid)
-            score += grid.check_rows()
-            score += grid.check_columns()
-            
-            # Get next state and reward
-            next_piece = choose_piece(random.randint(1, 6))
-            next_piece.shape = np.array(next_piece.shape)
-            next_state_tensor = agent.get_state_tensor(grid.board, next_piece)
-            
-            reward = calculate_reward(grid_before, grid.board, score_before, score)
-            done = grid.is_game_over([next_piece])
-            
-            # Store transition and train
-            action_idx = action[0] * GRID_WIDTH + action[1]
-            agent.memory.push(state_tensor, action_idx, reward, next_state_tensor, done)
-            agent.train()
-            
-            state_tensor = next_state_tensor
-            piece = next_piece
-            
+                reward = calculate_reward(grid_before, grid.board, score_before, score)
+
+                action_idx = action[0] * GRID_WIDTH + action[1]
+                agent.memory.push(state_tensor, action_idx, reward, next_state_tensor, done)
+                agent.train()
+                
+                state_tensor = next_state_tensor
+                piece = next_piece
+
             if done:
                 break
         
