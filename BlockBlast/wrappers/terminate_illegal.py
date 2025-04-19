@@ -1,7 +1,7 @@
 import gymnasium as gym
 
 
-class TerminateIllegalWoodoku(gym.Wrapper):
+class TerminateIllegalBlockBlast(gym.Wrapper):
     def __init__(self, env, illegal_reward):
         super().__init__(env)
         self._illegal_reward = illegal_reward
